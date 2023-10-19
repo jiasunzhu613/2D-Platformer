@@ -46,6 +46,7 @@ namespace Player
     private bool onGround;
     private bool onWall;
     private SpriteRenderer _spriteRenderer;
+    public Animator _animator;
     // public Transform groundCheck;
     
     #region Finding Contacts
@@ -101,9 +102,9 @@ namespace Player
         // }
         onGround = isPlayerGrounded();
         onWall = isPlayerOnWall();
+        UpdateAnimationParameters();
 
-
-        Debug.Log(onGround);
+        // Debug.Log(onGround);
         // Debug.Log(onWall);
         
         if (onGround)
@@ -268,8 +269,8 @@ namespace Player
     {
         Vector2 wallCheckLeft = transform.position;
         Vector2 wallCheckRight = transform.position;
-        wallCheckLeft.x -= _spriteRenderer.bounds.size.x / 2;
-        wallCheckRight.x += _spriteRenderer.bounds.size.x / 2;
+        wallCheckLeft.x -= collider.bounds.size.x / 2;
+        wallCheckRight.x += collider.bounds.size.x / 2;
         
         Collider2D[] wallCollisionsLeft = Physics2D.OverlapCircleAll(wallCheckLeft, 0.2f, groundLayer);
         foreach (Collider2D collision in wallCollisionsLeft)
@@ -322,11 +323,33 @@ namespace Player
         _contacts = new ContactPoint2D[16];
     }
 
+    private void UpdateAnimationParameters()
+    {
+       Flip(rb.velocity.x);
+        _animator.SetFloat("Speed", Mathf.Abs(rb.velocity.x));
+        _animator.SetFloat("VerticalVelocity", rb.velocity.y);
+        _animator.SetBool("OnGround", onGround);
+        _animator.SetBool("OnWall", onWall);
+    }
+
+    private void Flip(float x)
+    {
+        if ((x < -0.1f && !_spriteRenderer.flipX) || (x > 0.1f && _spriteRenderer.flipX))
+        {
+            _spriteRenderer.flipX = !_spriteRenderer.flipX;
+        }
+    }
+
+
     void OnDrawGizmos()
     {
         Gizmos.color = Color.red;
-        var pos = transform.position - new Vector3(0, _spriteRenderer.bounds.size.y / 2, 0);
+        var pos = transform.position - new Vector3(0, _spriteRenderer.bounds.size.y / 2);
         Gizmos.DrawSphere(pos, 0.2f);
+        var pos2 = transform.position - new Vector3(collider.bounds.size.x / 2,0);
+        Gizmos.DrawSphere(pos2, 0.2f);
+        var pos3 = transform.position + new Vector3(collider.bounds.size.x / 2,0);
+        Gizmos.DrawSphere(pos3, 0.2f);
     }
 }
 }
