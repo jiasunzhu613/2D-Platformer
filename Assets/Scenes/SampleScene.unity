@@ -233,7 +233,7 @@ MonoBehaviour:
     ModeOverride: 0
     LensShift: {x: 0, y: 0}
     GateFit: 2
-    m_SensorSize: {x: 2.3060346, y: 1}
+    m_SensorSize: {x: 2.062982, y: 1}
   m_Transitions:
     m_BlendHint: 0
     m_InheritPosition: 0
@@ -392,7 +392,7 @@ GameObject:
   - component: {fileID: 981180792}
   - component: {fileID: 981180794}
   m_Layer: 0
-  m_Name: Square
+  m_Name: George
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -460,7 +460,7 @@ SpriteRenderer:
   m_SortingLayerID: -2120565953
   m_SortingLayer: 3
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 72de0c64f2c6a498096698322c976a67, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 63be6307aa9d1464e964b62b9b78283e, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -529,7 +529,8 @@ MonoBehaviour:
   OtherJumpHeight: 2
   JumpTimeToPeak: 0.5
   Speed: 7
-  NumberOfJumps: 2
+  RunAccelRate: 0.3
+  NumberOfJumps: 1
   _ExtraGravityFactor: 2
   JumpGraceTime: 0.2
   JumpBufferTime: 0.2

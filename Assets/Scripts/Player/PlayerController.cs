@@ -9,6 +9,7 @@ using Vector3 = UnityEngine.Vector3;
 namespace Player
 {
     //TODO: Implement state machine
+    //TODO: Switch from changing velocity to control horizontal movement to using forces 
    public class PlayerController : MonoBehaviour
 {
     #region Movement variables
@@ -17,6 +18,8 @@ namespace Player
     public float JumpTimeToPeak;
     private float OtherJumpTimeToPeak;
     public float Speed;
+    private float RunAccel;
+    public float RunAccelRate = 0.8f;
     private float FirstJumpForce;
     private float OtherJumpForce;
     public int NumberOfJumps = 2;
@@ -73,6 +76,7 @@ namespace Player
         FirstJumpForce = 2 * FirstJumpHeight / JumpTimeToPeak;
         float gravityNeeded = -2 * FirstJumpHeight / (JumpTimeToPeak * JumpTimeToPeak);
         _GravityScale = gravityNeeded / -9.81f;
+        RunAccel = Speed * RunAccelRate;
         // Debug.Log(_GravityScale);
         // Debug.Log(FirstJumpForce);
         
@@ -236,13 +240,29 @@ namespace Player
     }
     void MoveCharacter()
     {
-        Vector2 newVelocity = new Vector2(_moveInput.x * Speed, rb.velocity.y);
+        //Currently just setting velocity
+        // Vector2 newVelocity = new Vector2(_moveInput.x * Speed, rb.velocity.y); 
+        // // for some reason rb.velocity.y gets reset?
+        // if (wantsToWallClimb)
+        //     newVelocity.y = _moveInput.y * Speed;
+        // else if (onWall && newVelocity.x != 0)
+        //     newVelocity.y /= 10f;
+        // rb.velocity = newVelocity;
+        
+        //New 
+        //TODO: maybe also implement custom friction later? (not sure if needed tho)
+        Vector2 newVelocity = new Vector2(rb.velocity.x, rb.velocity.y);
+        newVelocity.x = approach(rb.velocity.x, _moveInput.x * Speed, RunAccel);
         if (wantsToWallClimb)
-            newVelocity.y = _moveInput.y * Speed;
+            newVelocity.y = approach(rb.velocity.y, _moveInput.y * Speed, RunAccel);
         else if (onWall && newVelocity.x != 0)
             newVelocity.y /= 10;
-
         rb.velocity = newVelocity;
+    }
+
+    private float approach(float val, float target, float amount)
+    {
+        return val > target ? Math.Max(val - amount, target) : Math.Min(val + amount, target);
     }
     
     private bool isPlayerGrounded()
@@ -330,6 +350,7 @@ namespace Player
         _animator.SetFloat("VerticalVelocity", rb.velocity.y);
         _animator.SetBool("OnGround", onGround);
         _animator.SetBool("OnWall", onWall);
+        _animator.SetBool("WantsToWallClimb", wantsToWallClimb);
     }
 
     private void Flip(float x)
