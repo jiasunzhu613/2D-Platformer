@@ -6,7 +6,7 @@ AnimationClip:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: WallClimb
+  m_Name: Wall_Idle
   serializedVersion: 6
   m_Legacy: 0
   m_Compressed: 0
@@ -20,13 +20,13 @@ AnimationClip:
   m_PPtrCurves:
   - curve:
     - time: 0
-      value: {fileID: 21300000, guid: 63be6307aa9d1464e964b62b9b78283e, type: 3}
+      value: {fileID: 21300000, guid: ad661f65b064140ed9deb05503a0d171, type: 3}
     - time: 0.083333336
-      value: {fileID: 21300000, guid: 9ec75abc82d5f49a481375e040a89a78, type: 3}
+      value: {fileID: 21300000, guid: 8e29a1714b5154b88b053f6a5317f9af, type: 3}
     - time: 0.16666667
-      value: {fileID: 21300000, guid: b3f787b3153bc492fbe1efbcbf00f630, type: 3}
+      value: {fileID: 21300000, guid: 3841d7c3466d54f01bc79aacc7099756, type: 3}
     - time: 0.25
-      value: {fileID: 21300000, guid: bf9c82ae3351c40ada991f03626a5089, type: 3}
+      value: {fileID: 21300000, guid: 632f5204f340a45a0b8933d1a1733c39, type: 3}
     attribute: m_Sprite
     path: 
     classID: 212
@@ -46,10 +46,10 @@ AnimationClip:
       customType: 23
       isPPtrCurve: 1
     pptrCurveMapping:
-    - {fileID: 21300000, guid: 63be6307aa9d1464e964b62b9b78283e, type: 3}
-    - {fileID: 21300000, guid: 9ec75abc82d5f49a481375e040a89a78, type: 3}
-    - {fileID: 21300000, guid: b3f787b3153bc492fbe1efbcbf00f630, type: 3}
-    - {fileID: 21300000, guid: bf9c82ae3351c40ada991f03626a5089, type: 3}
+    - {fileID: 21300000, guid: ad661f65b064140ed9deb05503a0d171, type: 3}
+    - {fileID: 21300000, guid: 8e29a1714b5154b88b053f6a5317f9af, type: 3}
+    - {fileID: 21300000, guid: 3841d7c3466d54f01bc79aacc7099756, type: 3}
+    - {fileID: 21300000, guid: 632f5204f340a45a0b8933d1a1733c39, type: 3}
   m_AnimationClipSettings:
     serializedVersion: 2
     m_AdditiveReferencePoseClip: {fileID: 0}
