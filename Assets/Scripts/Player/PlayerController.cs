@@ -9,7 +9,7 @@ using Vector3 = UnityEngine.Vector3;
 namespace Player
 {
     //TODO: Implement state machine
-    //TODO: Switch from changing velocity to control horizontal movement to using forces 
+    
    public class PlayerController : MonoBehaviour
 {
     #region Movement variables
@@ -19,7 +19,7 @@ namespace Player
     private float OtherJumpTimeToPeak;
     public float Speed;
     private float RunAccel;
-    public float RunAccelRate = 0.8f;
+    public float RunAccelRate = 0.6f;
     private float FirstJumpForce;
     private float OtherJumpForce;
     public int NumberOfJumps = 2;
@@ -32,10 +32,15 @@ namespace Player
     private float jumpBufferTimer;
     private float wallJumpBufferTimer;
     public float DashSpeed;
-    public float DashTime = 0.5f;
+    private float DashAccel;
+    public float DashAccelRate;
+    public float DashTime = 0.2f;
+    private Vector2 dashTarget;
+    private Vector2 dashAccel;
     private float dashTimer;
     private float _GravityScale = 1;
     private bool canDash = false;
+    private int _flipX;
     #endregion
 
     private int direction;
@@ -48,7 +53,7 @@ namespace Player
     private Vector2 _moveInput;
     private bool onGround;
     private bool onWall;
-    private SpriteRenderer _spriteRenderer;
+    public SpriteRenderer _spriteRenderer;
     public Animator _animator;
     // public Transform groundCheck;
     
@@ -66,7 +71,7 @@ namespace Player
         _groundFilter.layerMask = LayerMask.GetMask("GroundLayer");
         _contacts = new ContactPoint2D[16];
         minDotValue = 0.5f;
-        _spriteRenderer = GetComponent<SpriteRenderer>();
+        // _spriteRenderer = GetComponent<SpriteRenderer>();
     }
 
     // Start is called before the first frame update
@@ -77,6 +82,7 @@ namespace Player
         float gravityNeeded = -2 * FirstJumpHeight / (JumpTimeToPeak * JumpTimeToPeak);
         _GravityScale = gravityNeeded / -9.81f;
         RunAccel = Speed * RunAccelRate;
+        DashAccel = DashSpeed * DashAccelRate;
         // Debug.Log(_GravityScale);
         // Debug.Log(FirstJumpForce);
         
@@ -93,6 +99,7 @@ namespace Player
     // Update is called once per frame
     void Update()
     {
+        _flipX = _spriteRenderer.flipX ? -1 : 1;
         _moveInput.x = Input.GetAxisRaw("Horizontal");
         _moveInput.y = Input.GetAxisRaw("Vertical");
         // //Get Ground
@@ -110,6 +117,7 @@ namespace Player
 
         // Debug.Log(onGround);
         // Debug.Log(onWall);
+        // Debug.Log(Math.Sign(0));
         
         if (onGround)
         {
@@ -169,6 +177,57 @@ namespace Player
 
         if (Input.GetKeyDown(KeyCode.K) && canDash)
         {
+            float dfull = 5 * Speed;
+            float dhalf = dfull * 0.70710678118f; //multiply by component
+            Vector2 temp = Vector2.zero;
+            // set initial dash speeds (we will go from high to low, decelerate throughout dash)
+            // Debug.Log(_moveInput.y);
+            if (_moveInput != Vector2.zero)
+            {
+                if (_moveInput.x != 0 && _moveInput.y != 0)
+                {
+                    temp.Set(_moveInput.x * dhalf, _moveInput.y * dhalf);
+                    Debug.Log("45 degg entered");
+                }else if (_moveInput.x != 0)
+                {
+                    temp.Set(_moveInput.x * dfull, 0);
+                    Debug.Log("horizontal entered");
+                }
+                else
+                {
+                    temp.Set(0, _moveInput.y * dfull);
+                    Debug.Log("vertical entered");
+                } 
+            }
+            else
+            {
+                temp.Set(_flipX * dfull, 0);
+            }
+            Debug.Log(temp);
+            Debug.Log("vertical math sign is " + Math.Sign(temp.y));
+
+            
+            //set dashTarget and dashAccel
+            dashTarget.x = 2 * Speed * Math.Sign(temp.x);
+            dashTarget.y = 2 * Speed * Math.Sign(temp.y);
+            Debug.Log(dashTarget);
+            dashAccel.x = Math.Abs(DashAccelRate * dashTarget.x);
+            dashAccel.y = Math.Abs(DashAccelRate * dashTarget.y);
+            // Debug.Log(dashTarget.y);
+            if (rb.velocity.y < 0)
+            {
+                dashTarget.y *= 0.75f;
+            }
+            if (temp.x != 0)
+            {
+                dashAccel.x *= 0.70710678118f;
+            }
+            if (temp.y != 0)
+            {
+                dashAccel.y *= 0.70710678118f;
+            }
+
+            rb.velocity = temp;
             dashTimer = DashTime;
             canDash = false;
         }else 
@@ -228,10 +287,16 @@ namespace Player
         rb.velocity = new Vector2(rb.velocity.x, jumpForce);
     }
 
+    //TODO: MAKE DASH FEEL GOOD
     //TODO: change dash to dash into direction of player movement, or if there is no input, dash into facing direction
+    //TODO: add dash particles (fart propel LMFAO)
     void Dash()
     {
-        rb.velocity = new Vector2(direction*DashSpeed, 0);
+        //Should prolly use forces
+        Vector2 newVector = rb.velocity;
+        newVector.x = approach(newVector.x,  dashTarget.x, dashAccel.x);
+        newVector.y = approach(newVector.y,  dashTarget.y, dashAccel.y);
+        rb.velocity = newVector;
     }
 
     void SetGravityScale(float gravity)
@@ -255,7 +320,7 @@ namespace Player
         newVelocity.x = approach(rb.velocity.x, _moveInput.x * Speed, RunAccel);
         if (wantsToWallClimb)
             newVelocity.y = approach(rb.velocity.y, _moveInput.y * Speed, RunAccel);
-        else if (onWall && newVelocity.x != 0)
+        else if (onWall && newVelocity.x != 0) // TODO: add custom scratching wall/wall sliding animation
             newVelocity.y /= 10;
         rb.velocity = newVelocity;
     }
@@ -345,9 +410,10 @@ namespace Player
 
     private void UpdateAnimationParameters()
     {
-       Flip(rb.velocity.x);
+        Flip(rb.velocity.x);
         _animator.SetFloat("Speed", Mathf.Abs(rb.velocity.x));
         _animator.SetFloat("VerticalVelocity", rb.velocity.y);
+        _animator.SetFloat("VerticalSpeed", Mathf.Abs(rb.velocity.y));
         _animator.SetBool("OnGround", onGround);
         _animator.SetBool("OnWall", onWall);
         _animator.SetBool("WantsToWallClimb", wantsToWallClimb);
