@@ -6,6 +6,7 @@ namespace Player
 {
     public enum PlayerState{
         Movement,
-        Dashing
+        Dash,
+        Dead
     }
 }

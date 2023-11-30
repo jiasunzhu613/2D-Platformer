@@ -11,7 +11,7 @@ TagManager:
   - GroundLayer
   - Water
   - UI
-  - 
+  - Enemy
   - 
   - 
   - 
@@ -46,6 +46,9 @@ TagManager:
     locked: 0
   - name: Platforms
     uniqueID: 3392005189
+    locked: 0
+  - name: Spikes
+    uniqueID: 1608503679
     locked: 0
   - name: Player
     uniqueID: 2174401343
