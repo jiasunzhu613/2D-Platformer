@@ -13,16 +13,12 @@ namespace Player
     public class PlayerController : MonoBehaviour
     {
         #region Variables
-
-        [Header("Player Control")] 
+        [Header("Jump")] 
         private PlayerState _state;
         [SerializeField] private int FirstJumpHeight;
         [SerializeField] private int OtherJumpHeight;
         [SerializeField] private float JumpTimeToPeak;
         private float OtherJumpTimeToPeak;
-        [SerializeField] private float Speed;
-        private float RunAccel;
-        [SerializeField] private float RunAccelRate = 0.6f;
         private float FirstJumpForce;
         private float OtherJumpForce;
         [SerializeField] private int NumberOfJumps = 2;
@@ -31,39 +27,57 @@ namespace Player
         [SerializeField] private float JumpGraceTime = 0.2f;
         [SerializeField] private float JumpBufferTime = 0.2f;
         private float jumpGraceTimer;
-        private float wallJumpGraceTimer;
         private float jumpBufferTimer;
+        private float _GravityScale = 1;
+        private bool isJumping;
+        private bool wantsToOtherJump;
+        
+        [Header("Wall-Related")]
+        private bool wantsToWallClimb;
         private float wallJumpBufferTimer;
+        private float wallJumpGraceTimer;
+        
+        [Header("Run")]
+        private Vector2 _moveInput;
+        [SerializeField] private float Speed;
+        private float RunAccel;
+        [SerializeField] private float RunAccelRate = 0.6f;
+        
+        [Header("Dash")]
         [SerializeField] private float DashSpeed;
         private float DashAccel;
         [SerializeField] private float DashAccelRate;
         [SerializeField] private float DashTime = 0.2f;
-        [SerializeField] private float DashFreezeTime = 0.05f;
-        private float freezeTime;
+        // [SerializeField] private float DashFreezeTime = 0.05f;
+        // private float freezeTime;
         private Vector2 dashTarget;
         private Vector2 dashAccel;
         private float dashTimer;
-        private float _GravityScale = 1;
         private bool canDash = false;
+
+        [Header("Death")] 
+        private float DeathTime = 2f;
+        private float deathTimer;
+        private GameObject respawn;
+        
+        [Header("Facing Direction")]
         private int _flipX;
         private int direction;
-        private bool isJumping;
-        private bool wantsToOtherJump;
-        private bool wantsToWallClimb;
-        private Rigidbody2D rb;
-        private BoxCollider2D collider;
-        private LayerMask groundLayer;
-        private Vector2 _moveInput;
-        private bool onGround;
-        private bool onWall;
+        
+        [Header("Animation")]
         [SerializeField] private SpriteRenderer _spriteRenderer;
         [SerializeField] private Animator _animator;
-        // public Transform groundCheck;
 
-        [Header("Finding Contacts")] private float minDotValue;
+        [Header("Finding Contacts")] 
+        private float minDotValue;
         private int _enemyLayer;
         private ContactFilter2D _groundFilter;
         private ContactPoint2D[] _contacts;
+        private Rigidbody2D rb;
+        private BoxCollider2D collider;
+        private LayerMask groundLayer;
+        private bool onGround;
+        private bool onWall;
 
         private void Awake()
         {
@@ -75,9 +89,9 @@ namespace Player
             _contacts = new ContactPoint2D[16];
             minDotValue = 0.5f;
             _enemyLayer = LayerMask.NameToLayer("Enemy");
+            respawn = GameObject.FindWithTag("Respawn");
             // _spriteRenderer = GetComponent<SpriteRenderer>();
         }
-
         #endregion
 
         // Start is called before the first frame update
@@ -100,28 +114,156 @@ namespace Player
 
         private void EnterMovementState()
         {
-            
+            _state = PlayerState.Movement;
         }
-        private void EnterDashState()
-        {
-            
-        }
-        private void EnterDeadState()
-        {
-            
-        }
-        
+
         private void UpdateMovementState()
         {
-            
+            // UpdateContacts();
+            direction = rb.velocity.x < 0 ? -1 : 1;
+            MoveCharacter();
+            //Jump
+            // Debug.Log(jumpBufferTimer);
+            if (((jumpGraceTimer > 0f && jumpBufferTimer > 0f) || (wallJumpGraceTimer > 0f && wallJumpBufferTimer > 0f)) && !isJumping)
+            {
+                Debug.Log("Jumped");
+                Jump(FirstJumpForce);
+                jumpGraceTimer = 0f;
+                wallJumpGraceTimer = 0f;
+                jumpsRemaining--;
+                isJumping = true;
+            }
+
+            if (wantsToOtherJump && 0 < jumpsRemaining && jumpsRemaining <= NumberOfJumps - 1)
+            {
+                Debug.Log("Other jump entered");
+                Jump(OtherJumpForce);
+                jumpsRemaining--;
+            }
+
+            // Set gravity scale
+            if (wantsToWallClimb)
+            {
+                SetGravityScale(0);
+            }
+            else if (rb.velocity.y < 0f)
+            {
+                SetGravityScale(_GravityScale * _ExtraGravityFactor);
+            }
+            else
+            {
+                SetGravityScale(_GravityScale);
+            }
         }
+
+        private void EnterDashState() // TODO: figure out why semi dash to the right is so much shorted than to the left
+        {
+            SetGravityScale(0);
+            float dfull = 5 * DashSpeed;
+            float dhalf = dfull * 0.70710678118f; //multiply by component
+            Vector2 temp = Vector2.zero;
+            // set initial dash speeds (we will go from high to low, decelerate throughout dash)
+            Debug.Log(_moveInput);
+            if (_moveInput != Vector2.zero)
+            {
+                if (_moveInput.x != 0 && _moveInput.y != 0)
+                {
+                    temp.Set(_moveInput.x * dhalf, _moveInput.y * dhalf);
+                    Debug.Log("45 degg entered");
+                }
+                else if (_moveInput.x != 0)
+                {
+                    temp.Set(_moveInput.x * dfull, 0);
+                    Debug.Log("horizontal entered");
+                }
+                else
+                {
+                    temp.Set(0, _moveInput.y * dfull);
+                    Debug.Log("vertical entered");
+                }
+            }
+            else
+            {
+                temp.Set(_flipX * dfull, 0);
+            }
+
+            Debug.Log(temp);
+            Debug.Log("vertical math sign is " + Math.Sign(temp.y));
+
+
+            //set dashTarget and dashAccel
+            dashTarget.x = 2 * DashSpeed * Math.Sign(temp.x);
+            dashTarget.y = 2 * DashSpeed * Math.Sign(temp.y);
+            Debug.Log(dashTarget);
+            dashAccel.x = Math.Abs(DashAccelRate * dashTarget.x);
+            dashAccel.y = Math.Abs(DashAccelRate * dashTarget.y);
+            // Debug.Log(dashTarget.y);
+            if (rb.velocity.y < -0.1f)
+            {
+                dashTarget.y *= 0.75f;
+                
+            }
+
+            if (temp.x != 0)
+            {
+                dashAccel.x *= 0.70710678118f;
+            }
+            
+            if (temp.y != 0)
+            {
+                dashAccel.y *= 0.70710678118f;
+            }
+            Debug.Log(dashAccel);
+            rb.velocity = temp;
+            dashTimer = DashTime;
+            canDash = false;
+            _state = PlayerState.Dash;
+        }
+
         private void UpdateDashState()
         {
-            
+            Dash();
+            Debug.Log(rb.velocity);
+            if (dashTimer <= 0f || onWall)
+            {
+                EnterMovementState();
+            }
         }
+
+        private void EnterDeadState()
+        {
+            rb.velocity = Vector2.zero;
+            _state = PlayerState.Dead;
+            _animator.SetBool("isDead", true);
+            deathTimer = DeathTime;
+        }
+
         private void UpdateDeadState()
         {
+            // Freeze player movement by transitioning to dead state
+            // Teleport player to spawn point
+            // Death animation
             
+            if (deathTimer <= 0)
+            {
+                Respawn();
+                _state = PlayerState.Movement;
+            }
+        }
+        
+        // TODO: upon touching spike, kill player 
+        private void OnCollisionEnter2D(Collision2D other)
+        {
+            if (other.gameObject.layer != _enemyLayer)
+                return;
+            EnterDeadState();
+        }
+
+        private void OnCollisionStay2D(Collision2D other)
+        {
+            if (other.gameObject.layer != _enemyLayer)
+                return;
+            EnterDeadState();
         }
 
         /*
@@ -134,7 +276,8 @@ namespace Player
         // Update is called once per frame
         void Update()
         {
-            // Debug.Log((Vector3)rb.centerOfMass + transform.position);
+            Debug.Log(isJumping);
+
             _flipX = _spriteRenderer.flipX ? -1 : 1;
             _moveInput.x = Input.GetAxisRaw("Horizontal");
             _moveInput.y = Input.GetAxisRaw("Vertical");
@@ -173,9 +316,8 @@ namespace Player
                 jumpGraceTimer -= Time.deltaTime;
             }
 
-            if (onWall)
+            if (onWall && (rb.velocity.y < -0.1 || rb.velocity.y > 0.1))
             {
-                isJumping = false;
                 wallJumpGraceTimer = JumpGraceTime;
                 jumpsRemaining = NumberOfJumps;
             }
@@ -221,114 +363,29 @@ namespace Player
 
             if (Input.GetKeyDown(KeyCode.K) && canDash)
             {
-                // freezeTime = DashFreezeTime;
-                float dfull = 5 * Speed;
-                float dhalf = dfull * 0.70710678118f; //multiply by component
-                Vector2 temp = Vector2.zero;
-                // set initial dash speeds (we will go from high to low, decelerate throughout dash)
-                // Debug.Log(_moveInput.y);
-                if (_moveInput != Vector2.zero)
-                {
-                    if (_moveInput.x != 0 && _moveInput.y != 0)
-                    {
-                        temp.Set(_moveInput.x * dhalf, _moveInput.y * dhalf);
-                        Debug.Log("45 degg entered");
-                    }
-                    else if (_moveInput.x != 0)
-                    {
-                        temp.Set(_moveInput.x * dfull, 0);
-                        Debug.Log("horizontal entered");
-                    }
-                    else
-                    {
-                        temp.Set(0, _moveInput.y * dfull);
-                        Debug.Log("vertical entered");
-                    }
-                }
-                else
-                {
-                    temp.Set(_flipX * dfull, 0);
-                }
-
-                Debug.Log(temp);
-                Debug.Log("vertical math sign is " + Math.Sign(temp.y));
-
-
-                //set dashTarget and dashAccel
-                dashTarget.x = 2 * Speed * Math.Sign(temp.x);
-                dashTarget.y = 2 * Speed * Math.Sign(temp.y);
-                Debug.Log(dashTarget);
-                dashAccel.x = Math.Abs(DashAccelRate * dashTarget.x);
-                dashAccel.y = Math.Abs(DashAccelRate * dashTarget.y);
-                // Debug.Log(dashTarget.y);
-                if (rb.velocity.y < 0)
-                {
-                    dashTarget.y *= 0.75f;
-                }
-
-                if (temp.x != 0)
-                {
-                    dashAccel.x *= 0.70710678118f;
-                }
-
-                if (temp.y != 0)
-                {
-                    dashAccel.y *= 0.70710678118f;
-                }
-
-                rb.velocity = temp;
-                dashTimer = DashTime;
-                canDash = false;
+                EnterDashState();
             }
             else
             {
                 dashTimer -= Time.deltaTime;
             }
+
+            deathTimer -= Time.deltaTime;
         }
 
         private void FixedUpdate()
         {
-            // UpdateContacts();
-            direction = rb.velocity.x < 0 ? -1 : 1;
-            MoveCharacter();
-            //Jump
-            // Debug.Log(jumpBufferTimer);
-            if ((jumpGraceTimer > 0f && jumpBufferTimer > 0f) || (wallJumpGraceTimer > 0f && wallJumpBufferTimer > 0f))
+            switch (_state)
             {
-                // Debug.Log("JUmped");
-                // isJumping = true;
-                Jump(FirstJumpForce);
-                jumpGraceTimer = 0f;
-                wallJumpGraceTimer = 0f;
-                jumpsRemaining--;
-                isJumping = true;
-            }
-
-            if (wantsToOtherJump && 0 < jumpsRemaining && jumpsRemaining <= NumberOfJumps - 1)
-            {
-                Debug.Log("Other jump entered");
-                Jump(OtherJumpForce);
-                jumpsRemaining--;
-            }
-
-            // TODO: fix dash into wall and re-bounding of it, set velocity as 0 when hit wall
-            if (dashTimer > 0f)
-            {
-                Dash();
-            }
-
-            // Set gravity scale
-            if (wantsToWallClimb)
-            {
-                SetGravityScale(0);
-            }
-            else if (rb.velocity.y < 0f)
-            {
-                SetGravityScale(_GravityScale * _ExtraGravityFactor);
-            }
-            else
-            {
-                SetGravityScale(_GravityScale);
+                case PlayerState.Movement:
+                    UpdateMovementState();
+                    break;
+                case PlayerState.Dash:
+                    UpdateDashState();
+                    break;
+                case PlayerState.Dead:
+                    UpdateDeadState();
+                    break;
             }
         }
 
@@ -348,6 +405,11 @@ namespace Player
             newVector.x = approach(newVector.x, dashTarget.x, dashAccel.x);
             newVector.y = approach(newVector.y, dashTarget.y, dashAccel.y);
             rb.velocity = newVector;
+        }
+
+        private void Respawn()
+        {
+            transform.position = respawn.transform.position;
         }
 
         void SetGravityScale(float gravity)
@@ -497,21 +559,6 @@ namespace Player
             {
                 _spriteRenderer.flipX = !_spriteRenderer.flipX;
             }
-        }
-
-        // TODO: upon touching spike, kill player 
-        private void OnCollisionEnter2D(Collision2D other)
-        {
-            if (other.gameObject.layer != _enemyLayer)
-                return;
-            Debug.Log(rb.centerOfMass - (Vector2)transform.InverseTransformPoint(other.transform.position));
-        }
-
-        private void OnCollisionStay2D(Collision2D other)
-        {
-            if (other.gameObject.layer != _enemyLayer)
-                return;
-            Debug.Log(rb.centerOfMass - (Vector2)transform.InverseTransformPoint(other.transform.position));
         }
 
 
