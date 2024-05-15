@@ -2,6 +2,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
+using Cinemachine;
+using Unity.VisualScripting;
 using UnityEngine;
 using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
@@ -12,6 +14,8 @@ namespace Player
 
     public class PlayerController : MonoBehaviour
     {
+        public int coin_counter = 0;
+        
         #region Variables
         [Header("Jump")] 
         private PlayerState _state;
@@ -19,7 +23,7 @@ namespace Player
         [SerializeField] private int OtherJumpHeight;
         [SerializeField] private float JumpTimeToPeak;
         private float OtherJumpTimeToPeak;
-        private float FirstJumpForce;
+        public float FirstJumpForce;
         private float OtherJumpForce;
         [SerializeField] private int NumberOfJumps = 2;
         private int jumpsRemaining;
@@ -59,7 +63,8 @@ namespace Player
         private float DeathTime = 2f;
         private float deathTimer;
         private GameObject respawn;
-        
+        [SerializeField] private GameObject camera;
+         
         [Header("Facing Direction")]
         private int _flipX;
         private int direction;
@@ -230,9 +235,11 @@ namespace Player
             }
         }
 
-        private void EnterDeadState()
+        public void EnterDeadState()
         {
-            rb.velocity = Vector2.zero;
+            camera.GetComponent<CinemachineVirtualCamera>().enabled = false;
+            GetComponent<Collider2D>().enabled = false;
+            rb.velocity = Vector2.down;
             _state = PlayerState.Dead;
             _animator.SetBool("isDead", true);
             deathTimer = DeathTime;
@@ -246,7 +253,10 @@ namespace Player
             
             if (deathTimer <= 0)
             {
+                rb.velocity = Vector2.zero;
                 Respawn();
+                camera.GetComponent<CinemachineVirtualCamera>().enabled = true;
+                GetComponent<Collider2D>().enabled = true;
                 _state = PlayerState.Movement;
             }
         }
@@ -276,7 +286,7 @@ namespace Player
         // Update is called once per frame
         void Update()
         {
-            Debug.Log(isJumping);
+            Debug.Log(coin_counter);
 
             _flipX = _spriteRenderer.flipX ? -1 : 1;
             _moveInput.x = Input.GetAxisRaw("Horizontal");
@@ -292,6 +302,7 @@ namespace Player
             // }
             onGround = isPlayerGrounded();
             onWall = isPlayerOnWall();
+            // Debug.Log(wallJumpGraceTimer + " " + wallJumpBufferTimer);
             // hitBySpikes();
             UpdateAnimationParameters();
             // if (freezeTime > 0)
@@ -318,6 +329,7 @@ namespace Player
 
             if (onWall && (rb.velocity.y < -0.1 || rb.velocity.y > 0.1))
             {
+                isJumping = false; // didnt have this before?
                 wallJumpGraceTimer = JumpGraceTime;
                 jumpsRemaining = NumberOfJumps;
             }
@@ -390,7 +402,7 @@ namespace Player
         }
 
         //TODO: Optimize jump feel, rn jump feels very airy
-        void Jump(float jumpForce)
+        public void Jump(float jumpForce)
         {
             rb.velocity = new Vector2(rb.velocity.x, jumpForce);
         }
@@ -527,7 +539,6 @@ namespace Player
         {
             //Syntax for C# array creation, no pointers I believe
             int numberOfContacts = rb.GetContacts(_groundFilter, _contacts);
-            // Syntax for C# "foreach" loop
             for (int i = 0; i < numberOfContacts; i++)
             {
                 // Dot returns scalar value
