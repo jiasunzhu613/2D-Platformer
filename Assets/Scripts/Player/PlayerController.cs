@@ -3,10 +3,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
 using Cinemachine;
+using Enemy;
+using Unity.Mathematics;
 using Unity.VisualScripting;
 using UnityEngine;
 using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
+using Enemy;
 
 namespace Player
 {
@@ -15,6 +18,8 @@ namespace Player
     public class PlayerController : MonoBehaviour
     {
         public int coin_counter = 0;
+        public bool can_control = true;
+        public GameObject enemies;
         
         #region Variables
         [Header("Jump")] 
@@ -31,7 +36,7 @@ namespace Player
         [SerializeField] private float JumpGraceTime = 0.2f;
         [SerializeField] private float JumpBufferTime = 0.2f;
         private float jumpGraceTimer;
-        private float jumpBufferTimer;
+        private float jumpBufferTimer; 
         private float _GravityScale = 1;
         private bool isJumping;
         private bool wantsToOtherJump;
@@ -78,7 +83,7 @@ namespace Player
         private int _enemyLayer;
         private ContactFilter2D _groundFilter;
         private ContactPoint2D[] _contacts;
-        private Rigidbody2D rb;
+        public Rigidbody2D rb;
         private BoxCollider2D collider;
         private LayerMask groundLayer;
         private bool onGround;
@@ -129,11 +134,20 @@ namespace Player
             MoveCharacter();
             //Jump
             // Debug.Log(jumpBufferTimer);
-            if (((jumpGraceTimer > 0f && jumpBufferTimer > 0f) || (wallJumpGraceTimer > 0f && wallJumpBufferTimer > 0f)) && !isJumping)
+            if (((jumpGraceTimer > 0f && jumpBufferTimer > 0f) && !isJumping))
             {
                 Debug.Log("Jumped");
-                Jump(FirstJumpForce);
+                Jump(new Vector2(rb.velocity.x, FirstJumpForce));
                 jumpGraceTimer = 0f;
+                jumpsRemaining--;
+                isJumping = true;
+            }
+            
+            if ((wallJumpGraceTimer > 0f && wallJumpBufferTimer > 0f) && !isJumping)
+            {
+                Debug.Log("Jumped");
+                int dir = _spriteRenderer.flipX ? -1 : 1;
+                Jump(new Vector2(dir * Speed/1.44f, FirstJumpForce/1.44f));
                 wallJumpGraceTimer = 0f;
                 jumpsRemaining--;
                 isJumping = true;
@@ -142,7 +156,7 @@ namespace Player
             if (wantsToOtherJump && 0 < jumpsRemaining && jumpsRemaining <= NumberOfJumps - 1)
             {
                 Debug.Log("Other jump entered");
-                Jump(OtherJumpForce);
+                Jump(new Vector2(rb.velocity.x, OtherJumpForce));
                 jumpsRemaining--;
             }
 
@@ -286,125 +300,122 @@ namespace Player
         // Update is called once per frame
         void Update()
         {
-            Debug.Log(coin_counter);
-
-            _flipX = _spriteRenderer.flipX ? -1 : 1;
-            _moveInput.x = Input.GetAxisRaw("Horizontal");
-            _moveInput.y = Input.GetAxisRaw("Vertical");
-            // //Get Ground
-            // if (rb.velocity.y >= 0f)
-            // {
-            //     // research about better ways to check grounded
-            //     onGround = isPlayerGrounded();
-            //     // if (onGround)
-            //     //     isJumping = false;
-            //     // add checkingg onground true and jumpBufferTimer > 0 -> jump 
-            // }
-            onGround = isPlayerGrounded();
-            onWall = isPlayerOnWall();
-            // Debug.Log(wallJumpGraceTimer + " " + wallJumpBufferTimer);
-            // hitBySpikes();
-            UpdateAnimationParameters();
-            // if (freezeTime > 0)
-            // {
-            //     freezeTime -= Time.deltaTime;
-            //     return;
-            // }
-
-            // Debug.Log(onGround);
-            // Debug.Log(onWall);
-            // Debug.Log(Math.Sign(0));
-
-            if (onGround)
+            if (can_control)
             {
-                isJumping = false;
-                jumpGraceTimer = JumpGraceTime;
-                canDash = true;
-                jumpsRemaining = NumberOfJumps;
-            }
-            else
-            {
-                jumpGraceTimer -= Time.deltaTime;
-            }
+                _flipX = _spriteRenderer.flipX ? -1 : 1;
+                _moveInput.x = Input.GetAxisRaw("Horizontal");
+                _moveInput.y = Input.GetAxisRaw("Vertical");
+                // //Get Ground
+                // if (rb.velocity.y >= 0f)
+                // {
+                //     // research about better ways to check grounded
+                //     onGround = isPlayerGrounded();
+                //     // if (onGround)
+                //     //     isJumping = false;
+                //     // add checkingg onground true and jumpBufferTimer > 0 -> jump 
+                // }
+                onGround = isPlayerGrounded();
+                onWall = isPlayerOnWall();
+                Debug.Log(onWall);
+                UpdateAnimationParameters();
+                // if (freezeTime > 0)
+                // {
+                //     freezeTime -= Time.deltaTime;
+                //     return;
+                // }
 
-            if (onWall && (rb.velocity.y < -0.1 || rb.velocity.y > 0.1))
-            {
-                isJumping = false; // didnt have this before?
-                wallJumpGraceTimer = JumpGraceTime;
-                jumpsRemaining = NumberOfJumps;
-            }
-            else
-            {
-                wallJumpGraceTimer -= Time.deltaTime;
-            }
 
-            // Debug.Log(Input.GetButtonDown("Jump"));
-            if (Input.GetButtonDown("Jump")) // need to change later when more states are added
-            {
-                // Debug.Log("Space Presseed");
-                jumpBufferTimer = JumpBufferTime;
-                wallJumpBufferTimer = JumpBufferTime;
-                if (isJumping)
-                    wantsToOtherJump = true;
+                if (onGround)
+                {
+                    isJumping = false;
+                    jumpGraceTimer = JumpGraceTime;
+                    canDash = true;
+                    jumpsRemaining = NumberOfJumps;
+                }
                 else
-                    wantsToOtherJump = false;
-            }
-            else
-            {
-                jumpBufferTimer -= Time.deltaTime;
-                wallJumpBufferTimer -= Time.deltaTime;
-            }
+                {
+                    jumpGraceTimer -= Time.deltaTime;
+                }
 
-            // Variable jump
-            if (Input.GetButtonUp("Jump"))
-            {
-                // Debug.Log("JUMP BUTTON UP");
-                rb.velocity = new Vector2(rb.velocity.x, rb.velocity.y * 0.5f);
-                SetGravityScale(_GravityScale * _ExtraGravityFactor);
-            }
+                if (onWall && (rb.velocity.y < -0.1 || rb.velocity.y > 0.1))
+                {
+                    isJumping = false; // didnt have this before?
+                    wallJumpGraceTimer = JumpGraceTime;
+                    jumpsRemaining = NumberOfJumps;
+                }
+                else
+                {
+                    wallJumpGraceTimer -= Time.deltaTime;
+                }
 
-            if (Input.GetKey(KeyCode.L) && onWall)
-            {
-                wantsToWallClimb = true;
-            }
-            else
-            {
-                wantsToWallClimb = false;
-            }
-            // Debug.Log(wantsToWallClimb);
+                if (Input.GetButtonDown("Jump")) // need to change later when more states are added
+                {
+                    jumpBufferTimer = JumpBufferTime;
+                    wallJumpBufferTimer = JumpBufferTime;
+                    if (isJumping)
+                        wantsToOtherJump = true;
+                    else
+                        wantsToOtherJump = false;
+                }
+                else
+                {
+                    jumpBufferTimer -= Time.deltaTime;
+                    wallJumpBufferTimer -= Time.deltaTime;
+                }
 
-            if (Input.GetKeyDown(KeyCode.K) && canDash)
-            {
-                EnterDashState();
-            }
-            else
-            {
-                dashTimer -= Time.deltaTime;
-            }
+                // Variable jump
+                if (Input.GetButtonUp("Jump"))
+                {
+                    rb.velocity = new Vector2(rb.velocity.x, rb.velocity.y * 0.5f);
+                    SetGravityScale(_GravityScale * _ExtraGravityFactor);
+                }
 
-            deathTimer -= Time.deltaTime;
+                if (Input.GetKey(KeyCode.L) && onWall)
+                {
+                    wantsToWallClimb = true;
+                }
+                else
+                {
+                    wantsToWallClimb = false;
+                }
+                // Debug.Log(wantsToWallClimb);
+
+                if (Input.GetKeyDown(KeyCode.K) && canDash)
+                {
+                    EnterDashState();
+                }
+                else
+                {
+                    dashTimer -= Time.deltaTime;
+                }
+
+                deathTimer -= Time.deltaTime;
+            }
         }
 
         private void FixedUpdate()
         {
-            switch (_state)
+            if (can_control)
             {
-                case PlayerState.Movement:
-                    UpdateMovementState();
-                    break;
-                case PlayerState.Dash:
-                    UpdateDashState();
-                    break;
-                case PlayerState.Dead:
-                    UpdateDeadState();
-                    break;
+                switch (_state)
+                {
+                    case PlayerState.Movement:
+                        UpdateMovementState();
+                        break;
+                    case PlayerState.Dash:
+                        UpdateDashState();
+                        break;
+                    case PlayerState.Dead:
+                        UpdateDeadState();
+                        break;
+                }
             }
         }
 
         //TODO: Optimize jump feel, rn jump feels very airy
-        public void Jump(float jumpForce)
+        public void Jump(Vector2 velo)
         {
-            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+            rb.velocity = velo;
         }
 
         //TODO: MAKE DASH FEEL GOOD
@@ -421,6 +432,11 @@ namespace Player
 
         private void Respawn()
         {
+            // foreach (Transform enemy in enemies.GetComponentInChildren<Transform>())
+            // {
+            //     if (!enemy.parent.GetComponent<EnemyController>()) continue;
+            //     enemy.parent.GetComponent<EnemyController>().respawnTimer = 0;
+            // }
             transform.position = respawn.transform.position;
         }
 

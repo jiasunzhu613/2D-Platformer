@@ -28,7 +28,7 @@ namespace Enemy {
 
 		#region Death
 		[SerializeField] private float respawnTime;
-		private float respawnTimer;
+		public float respawnTimer;
 		#endregion
 
 		#region Variables
@@ -57,6 +57,7 @@ namespace Enemy {
 
 		private void Update(){
 			// Debug.Log(respawnTimer);
+			spriteRenderer.flipX = rb.velocity.x > -0.01;
 			respawnTimer -= Time.deltaTime;
 		}
 
@@ -89,7 +90,6 @@ namespace Enemy {
 					: desiredDirection;
 
 			changeInVelocity.x = desiredDirection * speed - rb.velocity.x;
-			
 			// force movmeent until it is farther than patrol distance away from patrol cneter then make it turn around
 			rb.AddForce(changeInVelocity, ForceMode2D.Impulse);
 		}
@@ -132,13 +132,21 @@ namespace Enemy {
 				{
 					EnterDeathState();
 					// force a jump?
-					player.Jump(player.FirstJumpForce);
+					player.Jump(new Vector2(player.rb.velocity.x, player.FirstJumpForce));
 				}
 				else
 				{
 					player.EnterDeadState();
 				}
 			}
+		}
+
+		void OnDrawGizmosSelected()
+		{
+#if UNITY_EDITOR
+			Gizmos.color = Color.red;
+			Gizmos.DrawLine(respawnPoint - new Vector2(patrolDistance, 0), respawnPoint + new Vector2(patrolDistance, 0));
+#endif
 		}
 	}
 
